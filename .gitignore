@@ -1,0 +1,67 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+wheels/
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+.cache/
+nosetests.xml
+coverage.xml
+htmlcov/
+
+# Type checkers / linters
+.mypy_cache/
+.pytype/
+.pyright/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+log/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Project-specific data/cache
+data/
+!data/.gitkeep
+
+# Local config / secrets (nếu có)
+*.env
+.env
+.env.*
+*.local
+*.secret
+
+# Temporary files
+tmp/
+temp/

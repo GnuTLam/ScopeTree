@@ -1,0 +1,2 @@
+[console_scripts]
+scopetree = scopetree.cli:cli
