@@ -35,8 +35,7 @@ htmlcov/
 
 # Logs
 *.log
-logs/
-log/
+ 
 
 # IDE / Editor
 .vscode/
@@ -48,12 +47,7 @@ log/
 .DS_Store
 Thumbs.db
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Project-specific data/cache
-data/
-!data/.gitkeep
+# (No notebooks/data directories used in this project)
 
 # Local config / secrets (nếu có)
 *.env
@@ -62,6 +56,6 @@ data/
 *.local
 *.secret
 
-# Temporary files
-tmp/
-temp/
+scopetree.egg-info/
+
+ 

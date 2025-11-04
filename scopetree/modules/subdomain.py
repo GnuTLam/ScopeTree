@@ -1,8 +1,8 @@
 import asyncio
 from scopetree.modules.base import BaseModule
-from scopetree.tools.wrappers import Subfinder, CertSh
+from scopetree.tools.wrappers import *
 
-class SubdomainModule(BaseModule):
+class Subdomain(BaseModule):
     """Subdomain enumeration"""
     
     @property
@@ -23,7 +23,6 @@ class SubdomainModule(BaseModule):
         tools = []
         if self.config.get('tools.subfinder.enabled'):
             tools.append(Subfinder(self.logger))
-        tools.append(CertSh(self.logger))  # Always use crt.sh
         
         # Run parallel
         tasks = [tool.run(root_domain) for tool in tools]
