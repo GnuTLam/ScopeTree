@@ -10,7 +10,6 @@ class Subdomain(BaseModule):
         return "Subdomain Enumeration"
     
     async def execute(self):
-        # Get root domain
         domains = self.db.get_domains()
         if not domains:
             self.logger.warning("No domains found")
@@ -19,16 +18,13 @@ class Subdomain(BaseModule):
         root_domain = domains[0]
         self.logger.info(f"Enumerating: {root_domain}")
         
-        # Initialize tools
         tools = []
         if self.config.get('tools.subfinder.enabled'):
             tools.append(Subfinder(self.logger))
         
-        # Run parallel
         tasks = [tool.run(root_domain) for tool in tools]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Combine results
+    
         all_subdomains = set()
         for tool, result in zip(tools, results):
             if isinstance(result, Exception):
@@ -36,8 +32,12 @@ class Subdomain(BaseModule):
                 continue
             self.logger.info(f"{tool.name} found {len(result)} subdomains")
             all_subdomains.update(result)
-        
-        # Save to DB
+        if self.config.get('tools.puredns.enabled') and all_subdomains:
+            puredns = Puredns(self.logger)
+            resolved = await puredns.resolve(list(all_subdomains))
+            if resolved:
+                all_subdomains = set(resolved)
+    
         added = self.db.add_domains(list(all_subdomains), source='passive')
         self.logger.info(f"Added {added} new subdomains (total: {len(all_subdomains)})")
         
