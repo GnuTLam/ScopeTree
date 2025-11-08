@@ -1,6 +1,6 @@
 import click
 import asyncio
-from typing import Optional, Dict
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -145,10 +145,16 @@ def cli(target: str, module: str, output: Optional[str]):
         db = SimpleDB()
         db.domains_list = [target_domain]
 
-        for module_name in modules:
+        for idx, module_name in enumerate(modules):
             module_info = MODULES[module_name]
             module_class = module_info['class']
             display_name = module_info['name']
+
+            # Add separator between modules (except for the first one)
+            if idx > 0:
+                console.print()  # Empty line
+                console.print("[dim]" + "─" * 60 + "[/dim]")
+                console.print()  # Empty line
 
             console.print(f"[cyan]→ {display_name}...[/cyan]")
 
@@ -160,8 +166,27 @@ def cli(target: str, module: str, output: Optional[str]):
 
                 # Display result
                 if result.status == ModuleStatus.SUCCESS:
-                    count = len(result.data) if result.data else 0
-                    console.print(f"[green]✓ Found {count} items[/green]")
+                    console.print(f"[green]✓ Found {result.count} items[/green]")
+
+                    # Display subdomains if found
+                    if result.data and result.count > 0:
+                        # Sort subdomains for better readability
+                        sorted_data = sorted(result.data)
+                        
+                        # Limit display to first 50 items to avoid overwhelming output
+                        display_limit = 50
+                        items_to_show = sorted_data[:display_limit]
+                        
+                        # Create a formatted list
+                        if result.count <= display_limit:
+                            # Show all items
+                            subdomain_list = "\n".join(f"  • {item}" for item in items_to_show)
+                            console.print(f"\n[cyan]Subdomains found:[/cyan]\n{subdomain_list}")
+                        else:
+                            # Show first 50 + note about remaining
+                            subdomain_list = "\n".join(f"  • {item}" for item in items_to_show)
+                            console.print(f"\n[cyan]Subdomains found (showing first {display_limit} of {result.count}):[/cyan]\n{subdomain_list}")
+                            console.print(f"[dim]... and {result.count - display_limit} more (use -o to save all results)[/dim]")
                 elif result.status == ModuleStatus.SKIPPED:
                     console.print(f"[yellow]⊘ Skipped: {result.error}[/yellow]")
                 else:
@@ -187,13 +212,12 @@ def cli(target: str, module: str, output: Optional[str]):
                 ModuleStatus.FAILED: "[red]✗[/red]"
             }
             status = status_map.get(result.status, "?")
-            count = len(result.data) if result.data else 0
 
             table.add_row(
                 target_domain,
                 MODULES[module_name]['name'],
                 status,
-                str(count)
+                str(result.count)
             )
 
     console.print(table)

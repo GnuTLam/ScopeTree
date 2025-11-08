@@ -58,5 +58,4 @@ Thumbs.db
 
 scopetree.egg-info/
 
-# Documentation files (keep local, don't push to repo)
-*.md
+*md

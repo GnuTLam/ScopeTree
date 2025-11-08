@@ -41,9 +41,14 @@ class ModuleResult:
         self.data = data
         self.error = error
         self.metadata = metadata or {}
-    
+
+    @property
+    def count(self) -> int:
+        """Get count of results"""
+        return len(self.data) if self.data else 0
+
     def __repr__(self):
-        return f"<ModuleResult status={self.status.value} items={len(self.data)}>"
+        return f"<ModuleResult status={self.status.value} items={self.count}>"
 
 class BaseModule(ABC):
     """
@@ -127,7 +132,8 @@ class BaseModule(ABC):
         Raises:
             Exception: To abort execution
         """
-        self.logger.info(f"Starting {self.name}")
+        # Log removed - info is displayed in module panel
+        pass
     
     async def post_execute(self, result: List[Any]) -> None:
         """
@@ -141,7 +147,8 @@ class BaseModule(ABC):
         Args:
             result: The result from execute()
         """
-        self.logger.info(f"{self.name} completed: {len(result)} items")
+        # Log removed - info is displayed in CLI result
+        pass
     
     async def validate(self) -> bool:
         """

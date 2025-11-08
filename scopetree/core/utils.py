@@ -53,8 +53,6 @@ def validate_domain(domain: str) -> bool:
         if i == len(labels) - 1:
             if label.isdigit():
                 return False
-            if len(label) < 2:
-                pass
     return True
 
 
