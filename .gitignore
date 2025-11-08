@@ -60,7 +60,3 @@ scopetree.egg-info/
 
 # Documentation files (keep local, don't push to repo)
 *.md
-README.md
-LLM_CONTEXT.md
-LLM_QUICK_REF.md
-baocao.md

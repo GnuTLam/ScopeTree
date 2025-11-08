@@ -1,9 +1,9 @@
 """
-Utility functions: chứa các hàm dùng chung, độc lập với domain cụ thể. 
+Utility functions: chứa các hàm dùng chung, độc lập với domain cụ thể.
 Mục tiêu: tái sử dụng, giảm lặp code và chuẩn hoá các thao tác phổ biến.
 """
 import re
-from typing import List, Set
+from typing import List
 
 # Subdomain processing
 def validate_domain(domain: str) -> bool:
@@ -56,4 +56,10 @@ def validate_domain(domain: str) -> bool:
             if len(label) < 2:
                 pass
     return True
-    
+
+
+# CLI utilities
+def parse_comma_separated(value: str) -> List[str]:
+    if not value or not value.strip():
+        return []
+    return [item.strip() for item in value.split(',') if item.strip()]

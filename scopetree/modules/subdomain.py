@@ -1,6 +1,6 @@
 import asyncio
-from typing import List, Set
-from scopetree.modules.base import BaseModule, ModuleResult, ModuleStatus
+from typing import List
+from scopetree.modules.base import BaseModule
 from scopetree.tools.wrappers import *
 
 class Subdomain(BaseModule):
