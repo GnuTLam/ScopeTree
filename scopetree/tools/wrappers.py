@@ -68,3 +68,45 @@ class Subfinder(BaseTool):
         results = [line.strip() for line in output.strip().split('\n') if line.strip()]
         self.logger.info(f"{self.name}: Found {len(results)} subdomains")
         return results
+
+
+class Puredns(BaseTool):
+    """Puredns wrapper for DNS resolution"""
+    
+    name = "puredns"
+    command = "puredns"
+    
+    async def run(self, domain: str) -> List[str]:
+        """Puredns doesn't enumerate by itself in resolve mode"""
+
+        return []
+    
+    async def resolve(self, domains: List[str]) -> List[str]:
+        """Run puredns resolve to validate a list of subdomains"""
+        if not self.is_installed():
+            self.logger.warning(f"{self.name} not installed")
+            return domains 
+        
+        if not domains:
+            return []
+        
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as tmp:
+            tmp.write('\n'.join(domains))
+            tmp_path = tmp.name
+        
+        try:
+            cmd = [self.command, 'resolve', tmp_path]
+            output = await self._run_command(cmd, timeout=300)
+            
+            if not output:
+                return []
+            
+            results = [line.strip() for line in output.strip().split('\n') if line.strip()]
+            self.logger.info(f"{self.name}: Resolved {len(results)}/{len(domains)} subdomains")
+            return results
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)

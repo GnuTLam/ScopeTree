@@ -51,7 +51,7 @@ class Subdomain(BaseModule):
 
 
     async def execute(self):
-        # Get root domain
+        """Execute subdomain enumeration"""
         domains = self.db.get_domains()
         if not domains:
             self.logger.warning("No domains found")
@@ -59,7 +59,7 @@ class Subdomain(BaseModule):
 
         root_domain = domains[0]
         self.logger.info(f"Enumerating: {root_domain}")
-
+        
         # Auto-detect and initialize tools
         tool_classes = self.get_all_tools()
         tools = []
@@ -76,11 +76,11 @@ class Subdomain(BaseModule):
         if not tools:
             self.logger.warning("No tools available to run")
             return []
-
+        
         # Run parallel
         tasks = [tool.run(root_domain) for tool in tools]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-
+        
         # Combine results
         all_subdomains = set()
         for tool, result in zip(tools, results):
@@ -89,7 +89,7 @@ class Subdomain(BaseModule):
                 continue
             self.logger.info(f"{tool.name} found {len(result)} subdomains")
             all_subdomains.update(result)
-
+        
         # Save to DB
         added = self.db.add_domains(list(all_subdomains), source='passive')
         self.logger.info(f"Added {added} new subdomains (total: {len(all_subdomains)})")
