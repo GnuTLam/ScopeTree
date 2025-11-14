@@ -1,6 +1,8 @@
 import asyncio
 import shutil
 import os
+import json
+import aiohttp
 from typing import List, Optional, Tuple, Dict
 
 
@@ -221,3 +223,142 @@ class Puredns(BaseTool):
         finally:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
+
+
+class Crtsh(BaseTool):
+
+    
+    name = "crtsh"
+    command = "curl" 
+    modules = ['subdomain']
+    default_timeout = 60 
+    default_retries = 1 
+    
+    API_URL = "https://crt.sh/"
+    
+    @classmethod
+    def is_installed(cls) -> bool:
+
+        return True 
+    
+    async def run(self, domain: str) -> List[str]:
+       
+        self.logger.debug(f"{self.name}: Querying for {domain}")
+        
+        try:
+            results = await self._query_http(domain)
+            if results:
+                self.logger.debug(f"{self.name}: Found {len(results)} subdomains via HTTP")
+                return results
+
+            return []
+        except Exception as e:
+            error_msg = str(e)
+            
+            if 'overloaded' in error_msg or 'many results' in error_msg:
+                self.logger.warning(f"{self.name}: {error_msg} - skipping curl fallback")
+                return []
+            
+            self.logger.debug(f"{self.name}: HTTP failed: {error_msg}, trying curl...")
+        
+        try:
+            results = await self._query_curl(domain)
+            if results:
+                self.logger.debug(f"{self.name}: Found {len(results)} subdomains via curl")
+                return results
+            return []
+        except Exception as e:
+            self.logger.debug(f"{self.name}: Curl fallback failed: {e}")
+            return []
+    
+    async def _query_http(self, domain: str) -> List[str]:
+
+        params = {
+            'q': f'%.{domain}',
+            'output': 'json'
+        }
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+            'Accept': 'application/json',
+        }
+        
+        timeout = aiohttp.ClientTimeout(total=self.timeout)
+        
+        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+            try:
+                async with session.get(self.API_URL, params=params) as response:
+                    if response.status == 503:
+                        text = await response.text()
+                        if 'many results' in text or 'try again later' in text:
+                            raise Exception(f"crt.sh overloaded (too many results for {domain})")
+                        raise Exception(f"HTTP {response.status}: Service unavailable")
+                    
+                    if response.status != 200:
+                        raise Exception(f"HTTP {response.status}")
+                    
+                    data = await response.json()
+                    
+                    if not data:
+                        self.logger.debug(f"{self.name}: No results from crt.sh")
+                        return []
+                    
+                    subdomains = set()
+                    for entry in data:
+                        name_value = entry.get('name_value', '')
+                        if name_value:
+                           
+                            for subdomain in name_value.split('\n'):
+                                subdomain = subdomain.strip().lower()
+                                
+                                if subdomain and '*' not in subdomain:
+                                    if subdomain.endswith(f'.{domain}') or subdomain == domain:
+                                        subdomains.add(subdomain)
+                    
+                    return sorted(list(subdomains))
+                    
+    
+    async def _query_curl(self, domain: str) -> List[str]:
+
+        if not shutil.which('curl'):
+            raise Exception("curl not installed")
+        
+        url = f"{self.API_URL}?q=%.{domain}&output=json"
+        
+        cmd = [
+            'curl',
+            '-s',  # Silent mode
+            '--max-time', str(self.timeout),
+            '-H', 'User-Agent: ScopeTree/1.0',
+            url
+        ]
+        
+        stdout, stderr, returncode = await self.run_tool(cmd, timeout=self.timeout + 5)
+        
+        if returncode != 0:
+            raise Exception(f"curl failed with code {returncode}: {stderr}")
+        
+        if not stdout or stdout.strip() == '':
+            self.logger.warning(f"{self.name}: Empty response from crt.sh")
+            return []
+        
+        try:
+            data = json.loads(stdout)
+            
+            if not data:
+                return []
+            
+            subdomains = set()
+            for entry in data:
+                name_value = entry.get('name_value', '')
+                if name_value:
+                    for subdomain in name_value.split('\n'):
+                        subdomain = subdomain.strip().lower()
+                        if subdomain and '*' not in subdomain:
+                            if subdomain.endswith(f'.{domain}') or subdomain == domain:
+                                subdomains.add(subdomain)
+            
+            return sorted(list(subdomains))
+            
+        except json.JSONDecodeError as e:
+            raise Exception(f"Invalid JSON from curl: {e}")
