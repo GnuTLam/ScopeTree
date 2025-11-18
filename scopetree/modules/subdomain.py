@@ -2,9 +2,9 @@ import asyncio
 from typing import List
 from scopetree.modules.base import BaseModule
 from scopetree.tools.wrappers import *
-from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.panel import Panel
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 
 class Subdomain(BaseModule):
     """Subdomain enumeration"""
@@ -89,48 +89,62 @@ class Subdomain(BaseModule):
             border_style="cyan"
         ))
         
-        # Run tools with progress bars
+        # Run tools in parallel with progress bar
         all_subdomains = set()
-        
-        # Create progress bar for each tool
+        completed = {'count': 0}
+
+        # Temporarily disable logger output to avoid interfering with progress bar
+        import logging
+        old_level = self.logger.level
+        self.logger.setLevel(logging.CRITICAL + 1)  # Disable all logging
+
+        async def run_tool_tracked(tool):
+            """Run tool and track completion"""
+            try:
+                result = await tool.run(root_domain)
+                completed['count'] += 1
+                return (tool, result, None)
+            except Exception as e:
+                completed['count'] += 1
+                return (tool, [], e)
+
+        # Run with progress bar
         with Progress(
             SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            TimeElapsedColumn(),
-            console=console,
-            transient=False
+            TextColumn("[bold blue]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console
         ) as progress:
-            
-            # Create tasks with progress tracking
-            async def run_tool_with_progress(tool, domain):
-                task_id = progress.add_task(
-                    f"[cyan]Running {tool.name}...",
-                    total=None  # Indeterminate progress (spinner only)
-                )
-                try:
-                    result = await tool.run(domain)
-                    progress.update(task_id, description=f"[green]✓ {tool.name} completed")
-                    # Small delay to show completion
-                    await asyncio.sleep(0.5)
-                    return result
-                except Exception as e:
-                    progress.update(task_id, description=f"[red]✗ {tool.name} failed: {str(e)[:50]}")
-                    await asyncio.sleep(0.5)
-                    raise e
-                finally:
-                    progress.remove_task(task_id)
-            
-            # Run all tools in parallel
-            tasks = [run_tool_with_progress(tool, root_domain) for tool in tools]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Combine results
-            for tool, result in zip(tools, results):
-                if isinstance(result, Exception):
-                    self.logger.error(f"{tool.name} failed: {result}")
-                    continue
-                self.logger.debug(f"{tool.name} found {len(result)} subdomains")
-                all_subdomains.update(result)
+            # Create progress task
+            task = progress.add_task(f"[cyan]Running {len(tools)} tools in parallel...", total=len(tools))
+
+            # Launch all tools in parallel
+            tasks = [asyncio.create_task(run_tool_tracked(tool)) for tool in tools]
+
+            # Update progress while tasks run
+            while completed['count'] < len(tools):
+                await asyncio.sleep(0.1)
+                progress.update(task, completed=completed['count'])
+
+            # Gather results
+            results = await asyncio.gather(*tasks)
+
+        # Restore logger
+        self.logger.setLevel(old_level)
+
+        # Process and display results
+        console.print()
+        for tool, result, error in results:
+            if error:
+                console.print(f"[red]✗ {tool.name}: Failed[/red]")
+                continue
+            count = len(result)
+            all_subdomains.update(result)
+            console.print(f"[green]✓ {tool.name}: {count} subdomains[/green]")
+
+        # Print summary
+        console.print(f"\n[bold cyan]Total unique: {len(all_subdomains)} subdomains[/bold cyan]")
         
         # Save to DB
         added = self.db.add_domains(list(all_subdomains), source='passive')

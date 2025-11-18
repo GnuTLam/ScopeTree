@@ -35,7 +35,9 @@ htmlcov/
 
 # Logs
 *.log
- 
+
+# Results folder
+results/
 
 # IDE / Editor
 .vscode/
@@ -58,4 +60,5 @@ Thumbs.db
 
 scopetree.egg-info/
 
-*md
+# Development docs (keep README.md and CLAUDE.md)
+*.md

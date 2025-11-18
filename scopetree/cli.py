@@ -6,6 +6,7 @@ from rich.table import Table
 from rich.panel import Panel
 import logging
 from pathlib import Path
+from datetime import datetime
 
 from scopetree.modules.subdomain import Subdomain
 from scopetree.modules.base import ModuleStatus
@@ -222,19 +223,36 @@ def cli(target: str, module: str, output: Optional[str]):
 
     console.print(table)
 
+    # Auto-save results to results/ folder
+    if not output:
+        # Create results directory
+        results_dir = Path("results")
+        results_dir.mkdir(exist_ok=True)
+
+        # Generate filename: results/example.com_subdomain_2024-01-15_14-30-45.txt
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        target_str = targets[0] if len(targets) == 1 else "multiple"
+        module_str = "_".join(modules)
+        output = results_dir / f"{target_str}_{module_str}_{timestamp}.txt"
+
+        console.print(f"\n[cyan]Auto-saving to: {output}[/cyan]")
+
     # Save output
     if output:
         try:
             output_path = Path(output)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+
             with open(output_path, 'w') as f:
+                f.write(f"# Target: {', '.join(results.keys())}\n")
+                f.write(f"# Modules: {', '.join(MODULES[m]['name'] for m in modules)}\n")
+                f.write(f"# Total: {sum(r.count for module_results in results.values() for r in module_results.values())} results\n\n")
+
                 for target_domain, module_results in results.items():
-                    f.write(f"# {target_domain}\n\n")
                     for module_name, result in module_results.items():
-                        f.write(f"## {MODULES[module_name]['name']}\n")
                         if result.data:
-                            for item in result.data:
+                            for item in sorted(result.data):
                                 f.write(f"{item}\n")
-                        f.write("\n")
             console.print(f"[green]✓ Saved to {output}[/green]")
         except Exception as e:
             console.print(f"[red]Error saving: {e}[/red]")
